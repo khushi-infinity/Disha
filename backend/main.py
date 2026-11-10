@@ -24,9 +24,9 @@ def user_language(text: str):
 
 def words(language: str):
     return {
-        "hi": {"location":"बिलकुल। पहले अपनी जगह की अनुमति दे दीजिए, ताकि मैं सही रास्ता बता सकूँ।", "not_found":"मुझे यह जगह नहीं मिली। कृपया नाम फिर से बोलिए।", "confirm":"क्या आप इस जगह पर जाना चाहती हैं: "},
-        "kn": {"location":"ಖಂಡಿತ. ಸರಿಯಾದ ದಾರಿ ಹೇಳಲು ಮೊದಲು ನಿಮ್ಮ ಸ್ಥಳದ ಅನುಮತಿ ನೀಡಿ.", "not_found":"ಈ ಸ್ಥಳ ಸಿಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಹೆಸರನ್ನು ಮತ್ತೆ ಹೇಳಿ.", "confirm":"ನೀವು ಈ ಜಾಗಕ್ಕೆ ಹೋಗಲು ಬಯಸುತ್ತೀರಾ: "},
-        "en": {"location":"Of course. Please allow your location first, so I can guide you correctly.", "not_found":"I could not find that place. Please say its name again.", "confirm":"Do you want to go to: "},
+        "hi": {"location":"रास्ता बताने के लिए कृपया अपनी जगह साझा करें। नीचे जगह वाले बटन को दबाइए।", "not_found":"मुझे यह जगह नहीं मिली। कृपया नाम फिर से बोलिए।", "confirm":"क्या आप इस जगह पर जाना चाहती हैं: ", "assist":"मैं आपकी मदद के लिए यहाँ हूँ। आप बताइए, आपको कहाँ जाना है?"},
+        "kn": {"location":"ದಾರಿ ಹೇಳಲು ದಯವಿಟ್ಟು ನಿಮ್ಮ ಸ್ಥಳ ಹಂಚಿಕೊಳ್ಳಿ. ಕೆಳಗಿನ ಸ್ಥಳದ ಗುಂಡಿಯನ್ನು ಒತ್ತಿ.", "not_found":"ಈ ಸ್ಥಳ ಸಿಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ಹೆಸರನ್ನು ಮತ್ತೆ ಹೇಳಿ.", "confirm":"ನೀವು ಈ ಜಾಗಕ್ಕೆ ಹೋಗಲು ಬಯಸುತ್ತೀರಾ: ", "assist":"ನಾನು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ಇಲ್ಲಿದ್ದೇನೆ. ನೀವು ಎಲ್ಲಿಗೆ ಹೋಗಬೇಕು?"},
+        "en": {"location":"To guide you, please share your location. Tap the location button below.", "not_found":"I could not find that place. Please say its name again.", "confirm":"Do you want to go to: ", "assist":"I am here to help. Where would you like to go?"},
     }[language]
 
 def destination_from(text):
@@ -55,8 +55,12 @@ async def conversation(body: ConversationInput):
             if len(choices)>1:
                 return {"reply":f"{text_words['confirm']}{choices[0]['name']}?","kind":"confirm_destination","choices":choices}
         except httpx.HTTPError: raise HTTPException(503,"Map search is temporarily unavailable. Please try again.")
-    reply=await chat(body.history[-6:]+[{"role":"user","content":text}])
-    return {"reply": reply or "Main aapki madad ke liye yahin hoon. Aap bataiye, aapko kahan jaana hai?", "kind":"chat"}
+    try:
+        reply=await chat(body.history[-6:]+[{"role":"user","content":text}])
+    except (httpx.HTTPError, KeyError, IndexError) as exc:
+        logger.warning("OpenRouter unavailable; using safe fallback: %s", type(exc).__name__)
+        reply=None
+    return {"reply": reply or text_words["assist"], "kind":"chat"}
 
 @app.post("/api/route")
 async def route(body: dict):
