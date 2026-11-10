@@ -43,10 +43,11 @@ async def health(): return {"ok":True,"speech_configured":configured(),"llm_conf
 async def conversation(body: ConversationInput):
     text=body.text.strip(); lower=text.lower()
     language=user_language(text); text_words=words(language)
-    if not body.location:
-        return {"reply":text_words["location"],"kind":"need_location"}
     # Navigation requests are fulfilled with verified map data before optional language assistance.
-    if any(x in lower for x in ["jana", "jaana", "jao", "go to", "route", "raasta", "majestic", "airport", "station"]):
+    navigation_request=any(x in lower for x in ["jana", "jaana", "jao", "go to", "route", "raasta", "majestic", "airport", "station", "directions", "take me"])
+    if navigation_request and not body.location:
+        return {"reply":text_words["location"],"kind":"need_location"}
+    if navigation_request:
         query=destination_from(text)
         try:
             choices=await search_destination(query,body.location.lat,body.location.lon)
